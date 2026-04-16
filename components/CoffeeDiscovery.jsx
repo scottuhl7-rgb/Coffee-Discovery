@@ -412,10 +412,15 @@ export default function CoffeeDiscovery() {
         body: JSON.stringify({
           lat: userLoc.lat,
           lng: userLoc.lng,
-          // Note: including the coffee's origin country (e.g. "Panama") in the
-          // query text causes Google Places to search there instead of biasing
-          // by the `location` param. Keep the query purely descriptive.
-          query: "specialty coffee roaster single origin",
+          // Keyword cascade — server tries each until one returns nearby
+          // shops. Most specific first (origin + region), then origin alone,
+          // then a generic specialty-coffee fallback so the panel is never
+          // empty just because a local shop doesn't explicitly name the coffee.
+          keywords: [
+            `${coffee.origin} ${coffee.region} coffee`,
+            `${coffee.origin} coffee`,
+            "specialty coffee single origin",
+          ],
         }),
       });
       const data = await resp.json();
@@ -1085,7 +1090,7 @@ export default function CoffeeDiscovery() {
                     marginBottom: 10,
                   }}
                 >
-                  Specialty coffee shops nearby
+                  Specialty coffee shops nearby with {sel.name}
                 </div>
                 <div
                   style={{
