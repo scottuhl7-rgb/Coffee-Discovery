@@ -5,8 +5,6 @@ import * as d3 from "d3";
 import * as topojson from "topojson-client";
 import COFFEES from "../data/coffees";
 
-const GW = 500;
-
 function countryFill(feat, dk) {
   const c = d3.geoCentroid(feat);
   if (!c || isNaN(c[1])) return dk ? "#2a3a30" : "#5a9a6a";
@@ -33,7 +31,9 @@ export default function CoffeeDiscovery() {
   const [nearbyPlaces, setNearbyPlaces] = useState(null);
   const [placesLoading, setPlacesLoading] = useState(false);
   const [userLoc, setUserLoc] = useState(null);
+  const [globeSize, setGlobeSize] = useState(500);
 
+  const wrapRef = useRef(null);
   const cvRef = useRef(null);
   const rotRef = useRef([0, -20, 0]);
   const zoomRef = useRef(0);
@@ -64,6 +64,24 @@ export default function CoffeeDiscovery() {
     };
   }, []);
 
+  // Responsive globe size: fit available width, cap at 500, floor at 280
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const update = () => {
+      const containerW =
+        wrapRef.current?.clientWidth || window.innerWidth;
+      // Leave room for outer padding
+      const size = Math.max(
+        260,
+        Math.min(500, Math.floor(containerW - 24))
+      );
+      setGlobeSize(size);
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
   // Get user location on mount
   useEffect(() => {
     if (navigator.geolocation) {
@@ -80,6 +98,7 @@ export default function CoffeeDiscovery() {
     (hIds = [], selId = null, zl = 0) => {
       const cv = cvRef.current;
       if (!cv || !worldData) return;
+      const GW = globeSize;
       const ctx = cv.getContext("2d");
       const dpr = window.devicePixelRatio || 1;
       cv.width = GW * dpr;
@@ -99,10 +118,10 @@ export default function CoffeeDiscovery() {
       const path = d3.geoPath(proj, ctx);
       ctx.clearRect(0, 0, GW, GW);
 
-      // Ocean gradient
+      // Ocean gradient — scale offsets with globe size so it looks right on mobile
       const oG = ctx.createRadialGradient(
-        GW / 2 - 50,
-        GW / 2 - 70,
+        GW / 2 - GW * 0.1,
+        GW / 2 - GW * 0.14,
         0,
         GW / 2,
         GW / 2,
@@ -207,10 +226,20 @@ export default function CoffeeDiscovery() {
         ctx.fill();
       }
     },
-    [worldData, dk]
+    [worldData, dk, globeSize]
   );
 
   renderRef.current = renderGlobe;
+
+  // Redraw immediately when globe size or world data changes
+  useEffect(() => {
+    if (!worldData) return;
+    renderRef.current?.(
+      results ? results.map((r) => r.id) : [],
+      selected?.id || null,
+      zoomRef.current
+    );
+  }, [globeSize, worldData, results, selected]);
 
   // Idle rotation
   useEffect(() => {
@@ -383,7 +412,10 @@ export default function CoffeeDiscovery() {
         body: JSON.stringify({
           lat: userLoc.lat,
           lng: userLoc.lng,
-          query: `specialty coffee ${coffee.origin} single origin roaster`,
+          // Note: including the coffee's origin country (e.g. "Panama") in the
+          // query text causes Google Places to search there instead of biasing
+          // by the `location` param. Keep the query purely descriptive.
+          query: "specialty coffee roaster single origin",
         }),
       });
       const data = await resp.json();
@@ -407,11 +439,14 @@ export default function CoffeeDiscovery() {
 
   return (
     <div
+      ref={wrapRef}
       style={{
         maxWidth: 720,
         margin: "0 auto",
+        padding: "0 16px",
+        boxSizing: "border-box",
         position: "relative",
-        minHeight: zoom > 0.1 ? 750 : "auto",
+        minHeight: zoom > 0.1 ? Math.min(750, globeSize + 320) : "auto",
         overflow: "hidden",
       }}
     >
@@ -575,8 +610,8 @@ export default function CoffeeDiscovery() {
           <div
             style={{
               position: "absolute",
-              width: GW + 30,
-              height: GW + 30,
+              width: globeSize + 30,
+              height: globeSize + 30,
               borderRadius: "50%",
               top: -15,
               left: "50%",
@@ -1074,6 +1109,8 @@ export default function CoffeeDiscovery() {
                           display: "flex",
                           justifyContent: "space-between",
                           alignItems: "baseline",
+                          gap: 8,
+                          flexWrap: "wrap",
                         }}
                       >
                         <span
@@ -1081,6 +1118,9 @@ export default function CoffeeDiscovery() {
                             color: "#fff",
                             fontWeight: 500,
                             fontSize: 14,
+                            flex: "1 1 auto",
+                            minWidth: 0,
+                            wordBreak: "break-word",
                           }}
                         >
                           {p.name}
