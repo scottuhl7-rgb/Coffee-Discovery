@@ -35,24 +35,23 @@ async function nearbySearch(lat, lng, keyword) {
   }));
 }
 
-// Fetch the shop's own website + a canonical Google Maps URL so the client
-// can deep-link straight to their menu. `url` is always present from Place
-// Details; `website` is optional (many shops have one, some don't).
+// Fetch the canonical Google Maps URL for each place so the client can
+// deep-link to the specific listing. We intentionally skip the shop-reported
+// `website` field because it's user-submitted and sometimes points at an
+// unrelated similarly-named business. The Google Maps URL is tied to the
+// place_id, so it's always correct.
 async function placeDetails(placeId) {
   const url = new URL(
     "https://maps.googleapis.com/maps/api/place/details/json"
   );
   url.searchParams.set("place_id", placeId);
-  url.searchParams.set("fields", "website,url");
+  url.searchParams.set("fields", "url");
   url.searchParams.set("key", GOOGLE_API_KEY);
 
   const resp = await fetch(url.toString());
   const data = await resp.json();
-  if (data.status !== "OK") return { website: null, mapsUrl: null };
-  return {
-    website: data.result?.website || null,
-    mapsUrl: data.result?.url || null,
-  };
+  if (data.status !== "OK") return { mapsUrl: null };
+  return { mapsUrl: data.result?.url || null };
 }
 
 // Sort highest-rated first. Unrated shops sink to the bottom. Tiebreak on

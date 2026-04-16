@@ -1102,7 +1102,7 @@ export default function CoffeeDiscovery() {
                   {nearbyPlaces.map((p, i) => (
                     <a
                       key={p.placeId || i}
-                      href={p.website || p.mapsUrl || "#"}
+                      href={p.mapsUrl || "#"}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{
@@ -1191,7 +1191,7 @@ export default function CoffeeDiscovery() {
                             color: "rgba(150,210,255,0.7)",
                           }}
                         >
-                          {p.website ? "Menu ↗" : "View on Maps ↗"}
+                          View on Maps ↗
                         </span>
                       </div>
                     </a>
