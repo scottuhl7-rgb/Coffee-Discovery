@@ -1100,13 +1100,19 @@ export default function CoffeeDiscovery() {
                   }}
                 >
                   {nearbyPlaces.map((p, i) => (
-                    <div
+                    <a
                       key={p.placeId || i}
+                      href={p.website || p.mapsUrl || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       style={{
                         background: "rgba(255,255,255,0.06)",
                         borderRadius: 8,
                         padding: "12px 14px",
                         border: "1px solid rgba(255,255,255,0.06)",
+                        display: "block",
+                        textDecoration: "none",
+                        color: "inherit",
                       }}
                     >
                       <div
@@ -1179,8 +1185,16 @@ export default function CoffeeDiscovery() {
                             {"$".repeat(p.priceLevel || 1)}
                           </span>
                         )}
+                        <span
+                          style={{
+                            marginLeft: "auto",
+                            color: "rgba(150,210,255,0.7)",
+                          }}
+                        >
+                          {p.website ? "Menu ↗" : "View on Maps ↗"}
+                        </span>
                       </div>
-                    </div>
+                    </a>
                   ))}
                 </div>
               </div>

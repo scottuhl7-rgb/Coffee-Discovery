@@ -35,6 +35,37 @@ async function nearbySearch(lat, lng, keyword) {
   }));
 }
 
+// Fetch the shop's own website + a canonical Google Maps URL so the client
+// can deep-link straight to their menu. `url` is always present from Place
+// Details; `website` is optional (many shops have one, some don't).
+async function placeDetails(placeId) {
+  const url = new URL(
+    "https://maps.googleapis.com/maps/api/place/details/json"
+  );
+  url.searchParams.set("place_id", placeId);
+  url.searchParams.set("fields", "website,url");
+  url.searchParams.set("key", GOOGLE_API_KEY);
+
+  const resp = await fetch(url.toString());
+  const data = await resp.json();
+  if (data.status !== "OK") return { website: null, mapsUrl: null };
+  return {
+    website: data.result?.website || null,
+    mapsUrl: data.result?.url || null,
+  };
+}
+
+// Sort highest-rated first. Unrated shops sink to the bottom. Tiebreak on
+// review count so a 5.0/2 doesn't outrank a 4.8/800.
+function sortByRating(places) {
+  return [...places].sort((a, b) => {
+    const ra = a.rating ?? -Infinity;
+    const rb = b.rating ?? -Infinity;
+    if (rb !== ra) return rb - ra;
+    return (b.totalRatings || 0) - (a.totalRatings || 0);
+  });
+}
+
 export async function POST(req) {
   if (!GOOGLE_API_KEY) {
     return NextResponse.json(
@@ -65,6 +96,17 @@ export async function POST(req) {
         break;
       }
     }
+
+    // Enrich each hit with the shop's website + Google Maps URL in parallel
+    // so users can tap through directly to check a menu.
+    if (places.length > 0) {
+      const details = await Promise.all(
+        places.map((p) => placeDetails(p.placeId))
+      );
+      places = places.map((p, i) => ({ ...p, ...details[i] }));
+    }
+
+    places = sortByRating(places);
 
     return NextResponse.json({ places, matchedKeyword });
   } catch (e) {
